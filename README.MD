@@ -1,6 +1,6 @@
 # Coderr Backend API
 
-[![en](https://img.shields.io/badge/lang-en-red.svg)](https://github.com/HTK-MM/Coderr-main_backend/blob/master/README.md) [![de](https://img.shields.io/badge/lang-de-yellow.svg)](https://github.com/HTK-MM/Coderr-main_backend/blob/master/README.de.md)
+[![en](https://img.shields.io/badge/lang-en-red.svg)](https://github.com/HTK-MM/Coderr-main_backend/blob/master/README.MD) [![de](https://img.shields.io/badge/lang-de-yellow.svg)](https://github.com/HTK-MM/Coderr-main_backend/blob/master/README.de.md)
 
 ## Description
 
