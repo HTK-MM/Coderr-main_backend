@@ -54,7 +54,7 @@ class LoginView(ObtainAuthToken):
             "username": user.username,
             "email": user.email,
             "user_id": user.id,
-            "message": message }, status=status.HTTP_201_CREATED)
+            "message": message }, status=status.HTTP_200_OK)
 
     def error_response(self, error_message, status_code):
         """Siehe Dokumentation in docs/views.md"""        
