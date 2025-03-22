@@ -39,7 +39,7 @@ class Offer(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     min_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=False)
-    min_delivery_time = models.IntegerField()   
+    min_delivery_time = models.IntegerField(null=True, blank=True)   
     
     def __str__(self):
         return f"{self.title} - {self.user.username}"

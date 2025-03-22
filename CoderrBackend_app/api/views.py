@@ -199,7 +199,6 @@ class OfferViewSet(viewsets.ModelViewSet):
         details_data = self.get_validated_details()            
         serializer.save(details_data=details_data)
 
-
     def calculate_min_values(self, details_data):
         """Siehe Dokumentation in docs/views.md""" 
         prices = [float(detail.get('price')) for detail in details_data if detail.get('price') is not None]
