@@ -8,10 +8,10 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     type = models.CharField(max_length=20)
     file = models.FileField(upload_to='images/', null=True, blank=True)
-    location = models.CharField(max_length=50, null=True, blank=True)
-    tel = models.CharField(max_length=20, null=True, blank=True)
-    description = models.TextField(null=True, blank=True)
-    working_hours = models.CharField(max_length=50, null=True,blank=True, validators=[RegexValidator(regex=r'^\d{1,2}-\d{1,2}$')])
+    location = models.CharField(max_length=50, null=False, blank=True, default="")
+    tel = models.CharField(max_length=20, null=False, blank=True, default="")
+    description = models.TextField(null=False, blank=True, default="")
+    working_hours = models.CharField(max_length=50, null=False, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     
 
@@ -35,11 +35,11 @@ class Offer(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     title = models.CharField(max_length=100)
     image = models.FileField(upload_to='images/', null=True, blank=True)
-    description = models.TextField()
+    description = models.TextField(null=False, blank=True,default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    min_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    min_delivery_time = models.IntegerField(null=True, blank=True)   
+    min_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=False)
+    min_delivery_time = models.IntegerField()   
     
     def __str__(self):
         return f"{self.title} - {self.user.username}"
@@ -59,7 +59,7 @@ class OfferDetail(models.Model):
 class Order(models.Model):
     customer_user = models.ForeignKey(UserProfile, related_name="customer_orders", on_delete=models.CASCADE)
     business_user = models.ForeignKey(UserProfile, related_name="business_orders", on_delete=models.CASCADE)
-    offer_detail = models.ForeignKey(OfferDetail, related_name="orders", on_delete=models.CASCADE, null=True, blank=True) # 🔗 Enlace a OfferDetail
+    offer_detail = models.ForeignKey(OfferDetail, related_name="orders", on_delete=models.CASCADE, null=True, blank=True) 
     status = models.CharField(max_length=20, choices=[('in_progress', 'In Progress'), ('completed', 'Completed'), ('cancelled', 'Cancelled')])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

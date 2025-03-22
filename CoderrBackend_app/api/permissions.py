@@ -29,6 +29,13 @@ class CanCreateReview(permissions.BasePermission):
             return True
         return False 
 
+    def has_object_permission(self, request, view, obj):       
+        """Siehe Dokumentation in docs/permissions.md"""         
+        if request.method in permissions.SAFE_METHODS:
+            return True         
+        return obj.reviewer == request.user 
+    
+    
 class CanCreateOrder(permissions.BasePermission):
     def has_permission(self, request, view):        
         """Siehe Dokumentation in docs/permissions.md"""        
@@ -54,21 +61,39 @@ class CanCreateOrder(permissions.BasePermission):
             return True        
         user_type = getattr(request.user.profile, "type", None)
         if request.method == "PATCH" and user_type == "business":
-            return True
+            if obj.business_user == request.user.profile:
+                return True
+            else:
+                raise PermissionDenied("You do not have permission to modify this order.")
         return False
        
 class CanCreateOffer(permissions.BasePermission):
     def has_permission(self, request, view):       
-        """Siehe Dokumentation in docs/permissions.md"""         
+        """Siehe Dokumentation in docs/permissions.md"""          
         if request.method in permissions.SAFE_METHODS:
             return True       
         if request.user.is_authenticated:
             user_type = getattr(request.user.profile, "type", None)           
             if request.method == "POST" and user_type == "business":
-                return True            
-            if request.method == "PATCH" and user_type == "business":
-                return True  
-            if request.method == "DELETE" and user_type == "business":
-                return True  
+                return True      
+            return user_type == "business"
+        return False
+          
+    def has_object_permission(self, request, view, obj):        
+        """Siehe Dokumentation in docs/permissions.md"""
+        if request.method in permissions.SAFE_METHODS:
+            return True 
+        if request.method in ['PATCH', 'PUT', 'DELETE']: 
+            return obj.user == request.user     
         return False
     
+class CanViewOffer(permissions.BasePermission):   
+    def has_permission(self, request, view):
+        """Siehe Dokumentation in docs/permissions.md"""
+        if request.method == 'GET':            
+            if view.action == 'list':
+                return True           
+            elif view.action == 'retrieve':
+                return request.user.is_authenticated
+            return False 
+        return True

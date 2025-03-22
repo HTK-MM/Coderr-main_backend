@@ -1,6 +1,6 @@
 
 from rest_framework import viewsets, generics
-from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
 from CoderrBackend_app.api.serializers import UserProfileSerializer, UserAuthTokenSerializer, RegistrationSerializer, OfferSerializer, OfferDetailSerializer, OrderSerializer, ReviewSerializer
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
@@ -10,7 +10,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django_filters.rest_framework import DjangoFilterBackend
-from .permissions import IsOwnerProfile, CanCreateReview, CanCreateOrder, CanCreateOffer
+from .permissions import IsOwnerProfile, CanCreateReview, CanCreateOrder, CanCreateOffer, CanViewOffer
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework import status
 from django.db.models import Avg, Q
@@ -39,8 +39,8 @@ class LoginView(ObtainAuthToken):
 
     def post(self, request, *args, **kwargs): 
         """Siehe Dokumentation in docs/views.md"""        
-        username = request.data.get('username', None)
-        password = request.data.get('password', None)      
+        username = request.data.get('username')
+        password = request.data.get('password')      
         if not username:
             return Response({"error": "Username is required."}, status=status.HTTP_400_BAD_REQUEST)            
         if username and not password:
@@ -142,9 +142,9 @@ class OfferPagination(PageNumberPagination):
 class OfferViewSet(viewsets.ModelViewSet):
     queryset = Offer.objects.all()
     serializer_class = OfferSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, CanCreateOffer]
+    permission_classes = [CanCreateOffer, CanViewOffer]
     pagination_class = OfferPagination
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = (DjangoFilterBackend,)
     filterset_class = OfferFilter    
     
     def list(self, request, *args, **kwargs):
@@ -154,84 +154,92 @@ class OfferViewSet(viewsets.ModelViewSet):
         data = []        
         for offer in page:                  
             details = [ {
-            "id": detail.id, "url": f"/offerdetails/{detail.id}/"}for detail in offer.details.all() ]  
+            "id": detail.id, "url": f"/offerdetails/{detail.id}/"}for detail in offer.details.all() ]             
             offer_data = OfferSerializer(offer).data
             offer_data['details'] = details
             data.append(offer_data)
         return self.get_paginated_response(data)
        
-    def get_queryset(self):    
-        """Siehe Dokumentation in docs/views.md """
-        queryset = Offer.objects.all() 
+    def get_queryset(self):      
+        """Siehe Dokumentation in docs/views.md"""
+        queryset = self.filter_queryset(super().get_queryset())     
         user_id = self.request.query_params.get('creator_id')
         if user_id and self.request.user.is_authenticated:
-            queryset = queryset.filter(user=user_id)
-        params = self.request.query_params   
-        filters = Q()
-        if search := params.get('search'): filters |= Q(title__icontains=search) | Q(description__icontains=search)       
-        if max_delivery_time := params.get('max_delivery_time'): filters &= Q(min_delivery_time__lte=max_delivery_time)
-        if min_price := params.get('min_price'): filters &= Q(min_price__gte=min_price)   
-        queryset = queryset.filter(filters)
-        if ordering := params.get('ordering'): queryset = queryset.order_by(ordering)      
-        return queryset    
-        
+            queryset = queryset.filter(user=user_id)             
+        ordering = self.request.query_params.get('ordering')       
+        if ordering:
+            queryset = queryset.order_by(ordering)
+        return queryset
+
+    def retrieve(self, request, *args, **kwargs):
+        """Siehe Dokumentation in docs/views.md """
+        offer = self.get_object()                          
+        details = [ {  "id": detail.id, "url": f"/offerdetails/{detail.id}/"}for detail in offer.details.all()]
+        serializer = OfferSerializer(offer, context={"view": "retrieve"})
+        offer_data = serializer.data 
+        offer_data.pop("user_details", None) 
+        offer_data["details"] = details     
+        return Response(offer_data)
     
-    def perform_create(self, serializer, format=None):        
-        """Siehe Dokumentation in docs/views.md"""       
+    def perform_create(self, serializer, format=None):             
+        """Siehe Dokumentation in docs/views.md"""         
         user = self.request.user 
         self.validate_user_permissions(user)
-        details_data = self.get_validated_details()        
-        min_price, min_delivery_time = self.calculate_min_values(details_data)        
-        image = None  
-        if serializer.is_valid():  
-            offer = serializer.save(user=user,min_price=min_price, min_delivery_time=min_delivery_time, image=image)  
-            self.create_or_update_offer_details(offer, details_data)
-            return Response({"id": offer.id, "message": "Angebot erfolgreich erstellt"}, status=status.HTTP_201_CREATED) 
-        raise ValidationError(serializer.errors)
-    
-    def perfom_update(self, serializer, format=None):                        
+        details_data = self.get_validated_details()       
+        min_price, min_delivery_time = self.calculate_min_values(details_data)  
+        image = None        
+        serializer.save(user=user,min_price=min_price, min_delivery_time=min_delivery_time,image=image)
+
+    def perform_update(self, serializer, format=None):       
         """Siehe Dokumentation in docs/views.md"""
-        details_data = self.get_validated_details()                
-        offer = serializer.save()
-        self.create_or_update_offer_details(offer, details_data)
-        return Response({"id": offer.id, "message": "Angebot erfolgreich aktualisiert"}, status=status.HTTP_200_OK)
-           
-    def get_validated_details(self):
-        """Siehe Dokumentation in docs/views.md"""        
-        details_data = self.request.data.get("details", [])        
-        if not isinstance(details_data, list):
-            raise PermissionDenied({"error": "Das Feld 'details' muss eine Liste sein"})
-        return details_data    
-    
+        if not self.is_valid_data(self.request.data):
+            raise ValidationError({"error": "Ungültige Daten. Bitte überprüfen Sie Ihre Eingabe."})
+        if not serializer.is_valid():                             
+            raise ValidationError("Ungültige Daten für das Angebot. Bitte überprüfen Sie Ihre Eingabe.")
+        details_data = self.get_validated_details()            
+        serializer.save(details_data=details_data)
+
+
     def calculate_min_values(self, details_data):
-        """Siehe Dokumentation in docs/views.md """         
+        """Siehe Dokumentation in docs/views.md""" 
         prices = [float(detail.get('price')) for detail in details_data if detail.get('price') is not None]
         delivery_times = [int(detail.get('delivery_time_in_days')) for detail in details_data if detail.get('delivery_time_in_days') is not None]           
         min_price = min(prices) if prices else 0.00
         min_delivery_time = min(delivery_times) if delivery_times else None       
         return min_price, min_delivery_time 
     
-    def create_or_update_offer_details(self, offer, details_data):
-        """Siehe Dokumentation in docs/views.md"""        
-        for detail_data in details_data:
-            existing_detail = OfferDetail.objects.filter(offer=offer, title=detail_data.get('title')).first()
-            if existing_detail:
-                for key, value in detail_data.items():
-                    setattr(existing_detail, key, value)
-                existing_detail.save()
-            else:
-                OfferDetail.objects.create(offer=offer, **detail_data)
-        
     def validate_user_permissions(self, user):             
-        """Siehe Dokumentation in docs/views.md"""        
+        """#Siehe Dokumentation in docs/views.md"""        
         if not hasattr(user, 'profile') or user.profile.type != "business":
-            raise ValidationError({"error":"Nur User vom type 'business' dürfen Angebote erstellen"})              
-
+            raise ValidationError({"error":"Nur User vom type 'business' dürfen Angebote erstellen"})             
+    
+    def get_validated_details(self):
+        """Siehe Dokumentation in docs/views.md""" 
+        details_data = self.request.data.get("details", [])        
+        if not isinstance(details_data, list):
+            raise PermissionDenied({"error": "Das Feld 'details' muss eine Liste sein"})
+        return details_data    
+    
+    def is_valid_data(self, data):  
+        """Siehe Dokumentation in docs/views.md""" 
+        if 'details' not in data or not isinstance(data['details'], list):
+            return False 
+        for detail in data['details']:
+            if 'title' not in detail or 'price' not in detail:
+                return False  
+        return True
+    
+   
 class OfferDetailViewSet(viewsets.ModelViewSet):
     queryset = OfferDetail.objects.all()  
     serializer_class = OfferDetailSerializer 
-    permission_classes = [AllowAny]
-   
+    permission_classes = [IsAuthenticated]
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()  
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        data.pop('offer', None)        
+        return Response(data)
     
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
@@ -252,27 +260,48 @@ class OrderViewSet(viewsets.ModelViewSet):
         """Siehe Dokumentation in docs/views.md"""        
         orders = self.get_queryset().select_related('offer_detail')  
         serialized_orders = OrderSerializer(orders, many=True).data  
+        for order in serialized_orders:
+            order.pop('offer_detail', None)
         return Response(serialized_orders, status=200)
     
     def create(self,request, *args, **kwargs):        
-        """Siehe Dokumentation in docs/views.md"""            
-        offer_detail_id = self.get_offer_detail(request.data.get("offer_detail_id"))
+        """Siehe Dokumentation in docs/views.md"""                 
+        offer_detail_id = self.get_offer_detail(request.data.get("offer_detail_id"))       
+        if not offer_detail_id or not str(offer_detail_id).isdigit():
+            return Response({"error": "Invalid offer_detail_id."}, status=status.HTTP_400_BAD_REQUEST)
         request_data = self.request_data(offer_detail_id,user=self.request.user)     
-        serializer = self.get_serializer(data=request_data)        
+        serializer = self.get_serializer(data=request_data)          
         if not serializer.is_valid():
-            print (f"ERROR: Invalid data en el serializer: {serializer.errors}")   
-        self.perform_create(serializer)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  
+        self.perform_create(serializer)              
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         
     def get_offer_detail(self, offer_detail_id):
         """Siehe Dokumentation in docs/views.md"""
         if not offer_detail_id:
-            return Response({"error": "offer_detail_id is required"}, status=status.HTTP_400_BAD_REQUEST)        
+            return Response({"error": "offer_detail_id is required"}, status=status.HTTP_400_BAD_REQUEST)    
+        if not str(offer_detail_id).isdigit():
+            return Response({"error": "offer_detail_id must be an integer"}, status=status.HTTP_400_BAD_REQUEST)    
         try:
             return OfferDetail.objects.get(id=offer_detail_id)           
         except OfferDetail.DoesNotExist:
             return Response({"error": "Invalid offer_detail ID"}, status=status.HTTP_404_NOT_FOUND)
+
+    def get_object(self):        
+       try:
+            obj = Order.objects.get(pk=self.kwargs["pk"])  # Obtiene la orden sin filtrar por usuario
+       except Order.DoesNotExist:
+            raise NotFound("Order not found.")
+       return obj
+        
+        
+    def update(self, request, *args, **kwargs):        
+        instance = self.get_object()
+        user = request.user              
+        if getattr(user.profile, "type", None) == "business" and instance.business_user != user.profile:
+            raise PermissionDenied("Du hast keine Berechtigung, diese Bestellung zu bearbeiten.")        
+        return super().update(request, *args, **kwargs)
                 
     def request_data(self, offer_detail,user):    
         """Siehe Dokumentation in docs/views.md"""        
@@ -286,7 +315,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             "price":offer_detail.price,
             "features":offer_detail.features,
             "offer_type":offer_detail.offer_type,
-            "status":"in_progress"        }
+            "status":"in_progress" }
             
     def Destroy(self, request, *args, **kwargs):
         """Siehe Dokumentation in docs/views.md"""            
@@ -294,7 +323,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not request.user.is_staff:
             return Response({"error": "Sie haben keine Berechtigung, diese Bestellung zu löschen."}, status=status.HTTP_403_FORBIDDEN)
         self.perform_destroy(order)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({"order": None}, status=status.HTTP_204_NO_CONTENT)
    
 class BusinessUserOrderCountView(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
@@ -330,14 +359,15 @@ class ReviewViewSet(viewsets.ModelViewSet):
     filterset_class = ReviewFilter
        
     def get_queryset(self):             
-        """ Siehe Dokumentation in docs/views.md  """          
-        queryset = Review.objects.all()          
-        return queryset
+        """Siehe Dokumentation in docs/views.md """        
+        return self.filter_queryset(super().get_queryset())
        
     def perform_create(self, serializer):
-        """ Saves the review with the requesting user as the reviewer. """        
-        serializer.save(reviewer=self.request.user)
- 
+        """ Saves the review with the requesting user as the reviewer. """                    
+        if not serializer.is_valid():                             
+            raise ValidationError("Ungültige Daten für das Angebot. Bitte überprüfen Sie Ihre Eingabe.")
+        serializer.save(reviewer=self.request.user)    
+    
 class StatisticsView(APIView):
     permission_classes = [AllowAny]
 

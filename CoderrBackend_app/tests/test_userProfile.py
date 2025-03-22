@@ -20,6 +20,7 @@ class UserProfileTest(APITestCase):
     def test_get_userprofile_authenticated(self):       
         """Test that an authenticated user can retrieve their own user profile. The test sends a GET request to the profile owner's URL with authentication
         and verifies that the response status code is 200 OK."""
+        self.client.force_authenticate(user=self.user_owner) 
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         

@@ -108,19 +108,24 @@ This method also supports filtering by 'search', 'max_delivery_time', and 'min_p
 **Returns:**    
     -   QuerySet: A queryset of Offer instances filtered by creator ID if specified, or all offers. """
 
+### def retrieve(self, request, *args, **kwargs):
+Retrieves an Offer instance based on the given pk. The response contains the Offer instance's details, including the URL to each OfferDetail instance. The user details are not included in the response.
+
 ### def perform_create(self, serializer, format=None):        
-Creates a new Offer instance and its related OfferDetail instances. This method performs the following steps:
-1.  Validates the user permissions.
-2.  Retrieves the validated offer details.
-3.  Calculates the minimum price and delivery time from the validated offer details.
-4.  Creates a new Offer instance using the validated data.
-5.  Creates or updates the related OfferDetail instances.
-6.  Returns a response with the created Offer instance's ID and a success message.
+Creates a new Offer instance from the given request data. The request data should contain the offer details.
+The method performs the following steps:
+1.  Retrieves the validated offer details from the request data.
+2.  Calculates the minimum price and delivery time from the validated offer details.
+3.  Creates a new Offer instance with the given request data.
+4.  Validates the Offer instance.
+5.  If the validation fails, logs an error message.
+6.  Creates the Offer instance.
+7.  Returns a response with the created Offer instance and a 201 status code.
     **Args:**
-    -   serializer (OfferSerializer): The validated OfferSerializer instance.
+    -   serializer (OfferSerializer):  The validated serializer for the Offer instance.
     -   format (str): The format of the response. Defaults to None.
     **Returns:**
-    -   Response: A response object containing the created Offer instance's ID and a success message.
+    -   Response: A response object containing the created Offer instance and a 201 status code.
     -   Raises:     ValidationError: If the serializer is invalid.
 
 ### def perfom_update(self, serializer, format=None):  
@@ -137,13 +142,6 @@ This method performs the following steps:
     - Response: A response object containing the updated Offer instance's ID and a success message.
     - Raises: ValidationError: If the serializer is invalid.
 
-
-
-### def get_validated_details(self):
-Retrieves the validated offer details from the request data. This method checks if the 'details' field is present in the request data and if it is a list. If the field is missing or not a list, it raises a PermissionDenied exception.
-    **Returns:**
-    -   list: A list of dictionaries, each containing the details for an OfferDetail instance.
-
 ### def calculate_min_values(self, details_data):
 Calculates the minimum price and delivery time from the validated offer details.
 1.  Extracts the prices and delivery times from the validated offer details.
@@ -154,9 +152,16 @@ Calculates the minimum price and delivery time from the validated offer details.
     **Returns:**
     -   tuple: A tuple containing the minimum price and delivery time. 
 
-### def create_or_update_offer_details(self, offer, details_data):
-Creates or updates the OfferDetail instances related to the given Offer instance. This method loops over the validated offer details and either creates a new OfferDetail instance or updates an existing one if a matching title is found.
+### def get_validated_details(self):
+Retrieves the validated offer details from the request data. This method checks if the 'details' field is present in the request data and if it is a list. If the field is missing or not a list, it raises a PermissionDenied exception.
+    **Returns:**
+    -   list: A list of dictionaries, each containing the details for an OfferDetail instance.
 
+### def is_valid_data(self, data):  
+Checks if the given data is valid for creating/updating an offer. A valid data contains a 'details' key which is a list of dictionaries. Each dictionary must contain a 'title' and a 'price' key.    
+    **:param data:** The data to be validated.
+    **:return:** True if the data is valid, False otherwise.
+    
 ### def validate_user_permissions(self, user):             
 Validates that the given user is a business user. If the user is not a business user, raises a ValidationError with an appropriate error message.
     **Args:**
@@ -252,8 +257,10 @@ This method checks if the requesting user is authenticated. If not, it returns a
 ## ReviewViewSet
 
 ### def get_queryset(self): 
+This method returns the Review instances filtered by the ReviewFilter and ordered by the 'ordering' field. If the 'ordering' field is not specified, the Review instances are ordered by the 'updated_at' field in descending order. 
 **Returns:**
-    - A queryset of Review instances filtered by business_user_id and reviewer_id if specified, or all reviews.
+    - A queryset of Review instances filtered by the ReviewFilter.
+
 
 ## StatisticsView
 
