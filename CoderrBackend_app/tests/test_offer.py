@@ -87,7 +87,7 @@ class OfferTest(APITestCase):
     def test_get_offer_by_id_user_unauthenticated(self):
         """Test that an unauthenticated user can filter offers by 'offer_id' in the URL. The test will send a GET request with the offer ID to the offer detail URL without authentication and verify that the response status code is 200 OK. """
         response = self.client.get(self.offer_detail_url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_get_offer_by_id_nonexistent(self):
         """Test that an authenticated user cannot filter offers by a nonexistent 'offer_id' in the URL. The test will authenticate as a customer user,
@@ -101,6 +101,7 @@ class OfferTest(APITestCase):
     def test_get_offerdetails (self):
         """Test that an authenticated user can filter offers by 'offer_id' in the URL. The test will authenticate as a customer user,
         send a GET request with the offer ID to the offer detail URL, and verify that the response status code is 200 OK. """
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.customer_token.key}')
         url = reverse('offerdetail-detail', args=[self.offerdetail[0].id])
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -108,16 +109,25 @@ class OfferTest(APITestCase):
     def test_get_nonexistent_offerdetails (self):
         """Test that an authenticated user cannot retrieve an offer detail by a nonexistent 'offer detail ID' in the URL. The test will authenticate as a customer user,
         send a GET request with a nonexistent offer detail ID to the offer detail URL, and verify that the response status code is 404 NOT FOUND. """
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.customer_token.key}')
         offerdetail_id = 9999
         url = reverse('offerdetail-detail', args=[offerdetail_id])
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_get_offerdetails_unauthenticated (self):
+        """Test that an authenticated user cannot retrieve an offer detail by a nonexistent 'offer detail ID' in the URL. The test will authenticate as a customer user,
+        send a GET request with a nonexistent offer detail ID to the offer detail URL, and verify that the response status code is 404 NOT FOUND. """        
+        offerdetail_id = 9999
+        url = reverse('offerdetail-detail', args=[offerdetail_id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_update_offer_as_creator(self):       
         """Test that an authenticated user who is the creator of an offer can update the offer. The test will authenticate as the creator user,
         send a PATCH request with the offer ID to the offer detail URL, and verify that the response status code is 200 OK. The test will also retrieve the offer and verify that the title is updated."""
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.business_token.key}')        
-        data = {"title": "Updated Offer"}
+        data = {"title" : "Updated Offer", "details":[]}
         response = self.client.patch(self.offer_detail_url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.offer.refresh_from_db()
@@ -126,8 +136,7 @@ class OfferTest(APITestCase):
     def test_update_offer_invalid_data(self):
         """Test that updating an offer with invalid data returns a 400 BAD REQUEST. This test authenticates as a business user, sends a PATCH request with invalid
         data to the offer detail URL, and verifies that the response status code is 400 BAD REQUEST."""
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.business_token.key}')           
-        # Datos inválidos
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.business_token.key}')                
         invalid_data = {"title": "", "description": ""}      
         response = self.client.patch(self.offer_detail_url, invalid_data, format='json')    
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -150,7 +159,7 @@ class OfferTest(APITestCase):
         """Test that attempting to update a non-existent offer returns a 404 NOT FOUND. 
         The test authenticates as a business user, sends a PATCH request with a non-existent offer ID to the offer detail URL, and verifies that the response status code is 404 NOT FOUND."""
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.business_token.key}')    
-        nonexistent_id = 99999  # Un ID que no existe en la base de datos
+        nonexistent_id = 99999 
         url = reverse('offer-detail', args=[nonexistent_id])  
         data = {"title": "Updated Offer"}
         response = self.client.patch(url, data, format='json')    

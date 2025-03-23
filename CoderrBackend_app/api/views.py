@@ -43,7 +43,7 @@ class LoginView(ObtainAuthToken):
         password = request.data.get('password')      
         if not username:
             return Response({"error": "Username is required."}, status=status.HTTP_400_BAD_REQUEST)            
-        if username and not password:
+        if username and username.startswith("guest_") and not password:
             return self.guest_login(username)        
         return self.user_login(request)
 
@@ -190,7 +190,8 @@ class OfferViewSet(viewsets.ModelViewSet):
         image = None        
         serializer.save(user=user,min_price=min_price, min_delivery_time=min_delivery_time,image=image)
 
-    def perform_update(self, serializer, format=None):       
+    def perform_update(self, serializer, format=None):   
+        print(f"Datos de entrada: {self.request.data}")
         """Siehe Dokumentation in docs/views.md"""
         if not self.is_valid_data(self.request.data):
             raise ValidationError({"error": "Ungültige Daten. Bitte überprüfen Sie Ihre Eingabe."})
@@ -265,10 +266,11 @@ class OrderViewSet(viewsets.ModelViewSet):
     
     def create(self,request, *args, **kwargs):        
         """Siehe Dokumentation in docs/views.md"""                 
-        offer_detail_id = self.get_offer_detail(request.data.get("offer_detail_id"))       
+        offer_detail_id = request.data.get("offer_detail_id")           
         if not offer_detail_id or not str(offer_detail_id).isdigit():
             return Response({"error": "Invalid offer_detail_id."}, status=status.HTTP_400_BAD_REQUEST)
-        request_data = self.request_data(offer_detail_id,user=self.request.user)     
+        offer_detail = self.get_offer_detail(offer_detail_id)
+        request_data = self.request_data(offer_detail,user=self.request.user)     
         serializer = self.get_serializer(data=request_data)          
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  
@@ -289,7 +291,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_object(self):        
        try:
-            obj = Order.objects.get(pk=self.kwargs["pk"])  # Obtiene la orden sin filtrar por usuario
+            obj = Order.objects.get(pk=self.kwargs["pk"]) 
        except Order.DoesNotExist:
             raise NotFound("Order not found.")
        return obj

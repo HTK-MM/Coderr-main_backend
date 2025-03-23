@@ -25,7 +25,7 @@ class CanCreateReview(permissions.BasePermission):
                 return False            
             existing_review =  Review.objects.filter(reviewer=request.user, business_user=business_id).first()
             if existing_review:                
-                raise PermissionDenied("Du hast bereit eine Bewertung für den Profil abgegeben.")
+                raise ValidationError({"error":"Du hast bereit eine Bewertung für den Profil abgegeben."})
             return True
         return False 
 
@@ -64,7 +64,7 @@ class CanCreateOrder(permissions.BasePermission):
             if obj.business_user == request.user.profile:
                 return True
             else:
-                raise PermissionDenied("You do not have permission to modify this order.")
+                raise PermissionDenied("Sie haben keine Berechtigung um die Bestellung zu aktualisieren.")
         return False
        
 class CanCreateOffer(permissions.BasePermission):

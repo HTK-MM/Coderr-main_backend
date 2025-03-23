@@ -156,13 +156,13 @@ class OfferSerializer(serializers.ModelSerializer):
         
     def update_offer_details(self, instance, details_data):          
         """Siehe Dokumentation in docs/serializers.md"""
-        existing_details = {detail.title: detail for detail in OfferDetail.objects.filter(offer=instance)}
+        existing_details = {detail.offer_type: detail for detail in OfferDetail.objects.filter(offer=instance)}
         for detail_data in details_data:       
-            title = detail_data.get('title')    
+            offerType = detail_data.get('offer_type')    
             revisions = detail_data.get('revisions')  
             detail_data['revisions'] = 1 if revisions == 0 or revisions is None else revisions       
-            if title in existing_details:
-                detail_instance = existing_details[title]
+            if offerType in existing_details:
+                detail_instance = existing_details[offerType]
                 for attr, value in detail_data.items():
                     setattr(detail_instance, attr, value)                                        
                 detail_instance.save()
