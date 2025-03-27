@@ -190,11 +190,10 @@ class OfferViewSet(viewsets.ModelViewSet):
         image = None        
         serializer.save(user=user,min_price=min_price, min_delivery_time=min_delivery_time,image=image)
 
-    def perform_update(self, serializer, format=None):   
-        print(f"Datos de entrada: {self.request.data}")
+    def perform_update(self, serializer, format=None):         
         """Siehe Dokumentation in docs/views.md"""
         if not self.is_valid_data(self.request.data):
-            raise ValidationError({"error": "Ungültige Daten. Bitte überprüfen Sie Ihre Eingabe."})
+            raise ValidationError({"error": "Ungültige Daten. Bitte überprüfen Sie Ihre Eingabe."})        
         if not serializer.is_valid():                             
             raise ValidationError("Ungültige Daten für das Angebot. Bitte überprüfen Sie Ihre Eingabe.")
         details_data = self.get_validated_details()            
@@ -215,7 +214,11 @@ class OfferViewSet(viewsets.ModelViewSet):
     
     def get_validated_details(self):
         """Siehe Dokumentation in docs/views.md""" 
-        details_data = self.request.data.get("details", [])        
+        details_data = self.request.data.get("details", [])    
+        for detail in details_data: 
+            offerType = detail.get('offer_type')
+            if offerType not in ['basic', 'standard', 'premium']:
+                raise ValidationError({"error": "Ungültige Daten. Bitte überprüfen Sie Ihre Eingabe."})              
         if not isinstance(details_data, list):
             raise PermissionDenied({"error": "Das Feld 'details' muss eine Liste sein"})
         return details_data    
@@ -247,17 +250,16 @@ class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, CanCreateOrder]
     
     def get_queryset(self):       
-        """Siehe Dokumentation in docs/views.md"""        
-        user = self.request.user        
-        if user.is_staff:
-            return Order.objects.all()  
-        if user.is_authenticated:
-            return Order.objects.filter(
-                customer_user=user.profile ) | Order.objects.filter(business_user=user.profile) 
+        """Siehe Dokumentation in docs/views.md"""                 
+        user = self.request.user                
+        if user.is_authenticated:           
+            queryset = Order.objects.filter(customer_user=user.profile ) | Order.objects.filter(business_user=user.profile) 
+            return queryset
         return Order.objects.none()  
     
     def list(self, request, *args, **kwargs):
         """Siehe Dokumentation in docs/views.md"""        
+        print(self.get_permissions())
         orders = self.get_queryset().select_related('offer_detail')  
         serialized_orders = OrderSerializer(orders, many=True).data  
         for order in serialized_orders:
@@ -289,16 +291,19 @@ class OrderViewSet(viewsets.ModelViewSet):
         except OfferDetail.DoesNotExist:
             return Response({"error": "Invalid offer_detail ID"}, status=status.HTTP_404_NOT_FOUND)
 
-    def get_object(self):        
+    def get_object(self):                     
        try:
-            obj = Order.objects.get(pk=self.kwargs["pk"]) 
-       except Order.DoesNotExist:
+            obj = Order.objects.get(pk=self.kwargs["pk"])                     
+       except Order.DoesNotExist:           
             raise NotFound("Order not found.")
-       return obj
+       return obj       
         
-        
-    def update(self, request, *args, **kwargs):        
-        instance = self.get_object()
+    def update(self, request, *args, **kwargs):                    
+        instance = self.get_object()   
+        print(f"instance: {instance}")
+        if not instance:
+            print(f"obj: {instance}")
+            raise NotFound("Order not found.") 
         user = request.user              
         if getattr(user.profile, "type", None) == "business" and instance.business_user != user.profile:
             raise PermissionDenied("Du hast keine Berechtigung, diese Bestellung zu bearbeiten.")        
@@ -320,9 +325,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             
     def Destroy(self, request, *args, **kwargs):
         """Siehe Dokumentation in docs/views.md"""            
-        order = self.get_object()        
         if not request.user.is_staff:
             return Response({"error": "Sie haben keine Berechtigung, diese Bestellung zu löschen."}, status=status.HTTP_403_FORBIDDEN)
+        order =  Order.objects.all()                          
         self.perform_destroy(order)
         return Response({"order": None}, status=status.HTTP_204_NO_CONTENT)
    

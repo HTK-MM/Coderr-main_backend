@@ -1,9 +1,11 @@
-from rest_framework import serializers
+from django.forms import ValidationError
+from rest_framework import serializers, status
 from CoderrBackend_app import models
 from CoderrBackend_app.models import UserProfile, Offer, OfferDetail, Order, Review
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.db.models import Min
+from rest_framework.response import Response
 
 class UserSerializer(serializers.ModelSerializer):    
     class Meta:
@@ -156,9 +158,9 @@ class OfferSerializer(serializers.ModelSerializer):
         
     def update_offer_details(self, instance, details_data):          
         """Siehe Dokumentation in docs/serializers.md"""
-        existing_details = {detail.offer_type: detail for detail in OfferDetail.objects.filter(offer=instance)}
+        existing_details = {detail.offer_type: detail for detail in OfferDetail.objects.filter(offer=instance)}       
         for detail_data in details_data:       
-            offerType = detail_data.get('offer_type')    
+            offerType = detail_data.get('offer_type')   
             revisions = detail_data.get('revisions')  
             detail_data['revisions'] = 1 if revisions == 0 or revisions is None else revisions       
             if offerType in existing_details:

@@ -10,7 +10,7 @@ class IsOwnerProfile(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:  
             return request.user.is_authenticated         
         if obj.user == request.user:
-            return True        
+            return True            
         raise PermissionDenied("You do not have permission to perform this action.")
 
 class CanCreateReview(permissions.BasePermission):   
@@ -38,11 +38,11 @@ class CanCreateReview(permissions.BasePermission):
     
 class CanCreateOrder(permissions.BasePermission):
     def has_permission(self, request, view):        
-        """Siehe Dokumentation in docs/permissions.md"""        
+        """Siehe Dokumentation in docs/permissions.md"""            
         if request.method in permissions.SAFE_METHODS:
             return request.user and request.user.is_authenticated        
-        if request.user.is_authenticated:
-            user_type = getattr(request.user.profile, "type", None)            
+        if request.user.is_authenticated:           
+            user_type = getattr(request.user.profile, "type", None)             
             if request.method == "POST" and user_type == "customer":
                 return True            
             if request.method == "PATCH" and user_type == "business":
@@ -52,13 +52,13 @@ class CanCreateOrder(permissions.BasePermission):
         return False 
     
     def has_object_permission(self, request, view, obj):         
-        """Siehe Dokumentation in docs/permissions.md"""  
+        """Siehe Dokumentation in docs/permissions.md"""      
         if request.method == "GET":       
             if request.user.is_authenticated:
                 if obj.customer_user == request.user.profile or obj.business_user == request.user.profile:
                     return True      
         if request.method == 'DELETE' and request.user.is_staff:
-            return True        
+            return True               
         user_type = getattr(request.user.profile, "type", None)
         if request.method == "PATCH" and user_type == "business":
             if obj.business_user == request.user.profile:

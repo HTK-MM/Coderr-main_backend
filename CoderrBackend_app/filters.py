@@ -60,8 +60,8 @@ class OfferFilter(django_filters.FilterSet):
                 value = float(value) 
             except ValueError:
                 raise ValidationError(f'min_price must be a number, received: {value}')  
+            return queryset.filter(min_price__gte=value) 
         return queryset
-
     
     
 class ReviewFilter(django_filters.FilterSet):
