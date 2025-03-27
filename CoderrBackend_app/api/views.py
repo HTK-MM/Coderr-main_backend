@@ -268,10 +268,12 @@ class OrderViewSet(viewsets.ModelViewSet):
     
     def create(self,request, *args, **kwargs):        
         """Siehe Dokumentation in docs/views.md"""                 
-        offer_detail_id = request.data.get("offer_detail_id")           
+        offer_detail_id = request.data.get("offer_detail_id")               
         if not offer_detail_id or not str(offer_detail_id).isdigit():
             return Response({"error": "Invalid offer_detail_id."}, status=status.HTTP_400_BAD_REQUEST)
-        offer_detail = self.get_offer_detail(offer_detail_id)
+        offer_detail = self.get_offer_detail(offer_detail_id)            
+        if not offer_detail:
+            return Response({"error": "Invalid offer_detail_id."}, status=status.HTTP_404_NOT_FOUND)
         request_data = self.request_data(offer_detail,user=self.request.user)     
         serializer = self.get_serializer(data=request_data)          
         if not serializer.is_valid():
@@ -281,15 +283,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         
     def get_offer_detail(self, offer_detail_id):
-        """Siehe Dokumentation in docs/views.md"""
-        if not offer_detail_id:
-            return Response({"error": "offer_detail_id is required"}, status=status.HTTP_400_BAD_REQUEST)    
-        if not str(offer_detail_id).isdigit():
-            return Response({"error": "offer_detail_id must be an integer"}, status=status.HTTP_400_BAD_REQUEST)    
+        """Siehe Dokumentation in docs/views.md"""        
         try:
             return OfferDetail.objects.get(id=offer_detail_id)           
         except OfferDetail.DoesNotExist:
-            return Response({"error": "Invalid offer_detail ID"}, status=status.HTTP_404_NOT_FOUND)
+            raise NotFound({"error": "Invalid offer_detail ID"})
 
     def get_object(self):                     
        try:
@@ -299,18 +297,16 @@ class OrderViewSet(viewsets.ModelViewSet):
        return obj       
         
     def update(self, request, *args, **kwargs):                    
-        instance = self.get_object()   
-        print(f"instance: {instance}")
-        if not instance:
-            print(f"obj: {instance}")
+        instance = self.get_object()           
+        if not instance:           
             raise NotFound("Order not found.") 
         user = request.user              
         if getattr(user.profile, "type", None) == "business" and instance.business_user != user.profile:
             raise PermissionDenied("Du hast keine Berechtigung, diese Bestellung zu bearbeiten.")        
         return super().update(request, *args, **kwargs)
                 
-    def request_data(self, offer_detail,user):    
-        """Siehe Dokumentation in docs/views.md"""        
+    def request_data(self, offer_detail, user):    
+        """Siehe Dokumentation in docs/views.md"""          
         return {
             "offer_detail": offer_detail.id,
             "customer_user" : self.request.user.id, 

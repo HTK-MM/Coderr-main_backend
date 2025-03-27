@@ -98,7 +98,7 @@ class OrderTest(APITestCase):
         """Test that an authenticated customer user cannot create an order with a nonexistent offer_detail_id.
         The test authenticates as a customer user, sends a POST request with a nonexistent offer_detail_id to the order list URL, and verifies that the response status code is 404 NOT FOUND."""
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.customer_token.key}')
-        data = {          
+        data = {         
             "offer_detail_id":"999999", 
         }
         response = self.client.post(self.order_url, data, format='json')
