@@ -1,7 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import UserProfileViewSet,CustomerListView, BusinessListView, LoginView, RegistrationView, OfferViewSet, OfferDetailViewSet, OrderViewSet, ReviewViewSet,StatisticsView,BusinessUserOrderCountView, BusinessUserCompletedOrderCountView
-
+from .views import UserProfileViewSet,CustomerListView, BusinessListView, LoginView, RegistrationView, OfferViewSet, OfferDetailViewSet, OrderViewSet, ReviewViewSet,StatisticsView,BusinessUserOrderCountView, BusinessUserCompletedOrderCountView, CheckDBView
 router = DefaultRouter()
 router.register(r'profile', UserProfileViewSet)
 router.register(r'offers', OfferViewSet, basename='offer')
@@ -19,5 +18,6 @@ urlpatterns = [
     path('base-info/', StatisticsView.as_view(), name='base-info'),
     path('order-count/<int:business_user_id>/', BusinessUserOrderCountView.as_view(), name='_order_count_business_user'),
     path('completed-order-count/<int:business_user_id>/', BusinessUserCompletedOrderCountView.as_view(), name='_completed_order_count_business_user'),
+    path('check-db/', CheckDBView.as_view(), name='check-db'),
 ]
 

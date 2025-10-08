@@ -384,3 +384,8 @@ class StatisticsView(APIView):
                     "business_profile_count": business_profile_count,
                     "offer_count": offer_count        }
         return Response(data)
+    
+class CheckDBView(APIView):
+    def get(self, request):       
+        return Response({"review_count": 'Funciono'})
+    
