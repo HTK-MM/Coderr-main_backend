@@ -373,8 +373,8 @@ class ReviewViewSet(viewsets.ModelViewSet):
 class StatisticsView(APIView):
     permission_classes = [AllowAny]
 
-    def get(self, request):
-        """Siehe Dokumentation in docs/views.md"""
+    """ def get(self, request):
+        """ """Siehe Dokumentation in docs/views.md""" """
         review_count = Review.objects.count() 
         average_rating = Review.objects.aggregate(Avg("rating"))["rating__avg"] or 0 
         business_profile_count = UserProfile.objects.filter(type="business").count() 
@@ -383,9 +383,23 @@ class StatisticsView(APIView):
                     "average_rating": round(average_rating, 1), 
                     "business_profile_count": business_profile_count,
                     "offer_count": offer_count        }
+        return Response(data) """
+    
+    
+    def get(self, request, *args, **kwargs):
+        try:
+            review_count = Review.objects.count()
+            average_rating = Review.objects.aggregate(Avg("rating"))["rating__avg"]
+            average_rating = round(average_rating, 1) if average_rating is not None else "--"
+            business_profile_count = UserProfile.objects.filter(type="business").count()
+            offer_count = Offer.objects.count()
+        except Exception:
+            review_count = average_rating = business_profile_count = offer_count = "--"
+
+        data = {
+            "review_count": review_count,
+            "average_rating": average_rating,
+            "business_profile_count": business_profile_count,
+            "offer_count": offer_count
+        }
         return Response(data)
-    
-class CheckDBView(APIView):
-    def get(self, request):       
-        return Response({"review_count": 'Funciono'})
-    
