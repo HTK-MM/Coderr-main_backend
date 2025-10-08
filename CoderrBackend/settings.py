@@ -62,8 +62,7 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    'http://coderr.monica-morales.com',
-    'https://coderr.monica-morales.com',    
+    'http://coderr.monica-morales.com',   
 ]
 
 ROOT_URLCONF = 'CoderrBackend.urls'
