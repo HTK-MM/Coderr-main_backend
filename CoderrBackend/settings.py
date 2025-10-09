@@ -29,7 +29,12 @@ SECRET_KEY = 'django-insecure-$-&*l5j&1bwpfxe!9s6*z#63yz5psdxtawi3iort!xc%1#t_vy
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'coderr-main-backend.onrender.com',
+    'localhost',
+    '127.0.0.1',
+    'coderr.monica-morales.com',
+    ]
 
 CORS_ALLOW_ALL_ORIGINS = True
 
